@@ -750,7 +750,8 @@ class Butterfly extends Creature{
 }
 const KINDS={beetle:Beetle,ladybird:Ladybird,snail:Snail,ants:AntColumn,butterfly:Butterfly};
 // ---------- sound ----------
-const SND={on:false,ctx:null};
+const SND={on:true,ctx:null};
+const unlockAudio=()=>{if(SND.on){initAudio();SND.ctx.resume();}if(SND.ctx&&SND.ctx.state==='running'){removeEventListener('pointerdown',unlockAudio,true);removeEventListener('keydown',unlockAudio,true);}};addEventListener('pointerdown',unlockAudio,true);addEventListener('keydown',unlockAudio,true);
 function initAudio(){if(SND.ctx)return;const C=new (window.AudioContext||window.webkitAudioContext)();SND.ctx=C;const master=C.createGain();master.gain.value=0;master.connect(C.destination);SND.master=master;
  const buf=C.createBuffer(1,C.sampleRate*3,C.sampleRate);const d=buf.getChannelData(0);let b0=0;for(let i=0;i<d.length;i++){const w=Math.random()*2-1;b0=.97*b0+.03*w;d[i]=w*.5+b0*2;}SND.noise=buf;
  const loop=(type,f,q,g)=>{const s=C.createBufferSource();s.buffer=buf;s.loop=true;s.loopStart=Math.random();const fl=C.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const gn=C.createGain();gn.gain.value=g;s.connect(fl);fl.connect(gn);gn.connect(master);s.start(0,Math.random()*2);return {gn,fl};};
@@ -773,6 +774,7 @@ const ICON={rain:'<path d="M7 15a4 4 0 0 1 .8-7.9A5 5 0 0 1 17.5 9 3.5 3.5 0 0 1
 const CTRL=[['rain','Rain','R'],['devil','Dust Devil','D'],['night','Night','N'],['clear','Clear ground','C'],['sound','Sound','M'],['hide','Hide UI','H']];
 const btn={};for(const [id,label,key] of CTRL){const b=document.createElement('button');b.className='cb';b.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[id]}</svg><span>${label}</span><kbd>${key}</kbd>`;b.title=`${label} (${key})`;b.onclick=e=>{e.stopPropagation();doCtrl(id);};$('#ctrl').appendChild(b);btn[id]=b;}
 let nightOn=false,uiHidden=false;
+btn.sound.classList.add('on');
 function doCtrl(id){if(id=='rain'){rainOn=!rainOn;btn.rain.classList.toggle('on',rainOn);}
  else if(id=='devil'){devil.on=!devil.on;if(devil.on&&devil.str<.05){devil.x=rnd(-HW*.4,HW*.4);devil.z=rnd(-HH*.3,HH*.2);}btn.devil.classList.toggle('on',devil.on);}
  else if(id=='night'){nightOn=!nightOn;btn.night.classList.toggle('on',nightOn);}
@@ -841,7 +843,7 @@ function step(dt){dt=Math.min(dt,1/20);T+=dt;U.uTime.value=T;
  updateLeaves(dt,T);updateDust(dt,T);updateFireflies(dt,T);
  if(Math.floor(T*2)!==Math.floor((T-dt)*2)){trailCtx.globalCompositeOperation='destination-out';trailCtx.fillStyle='rgba(0,0,0,.012)';trailCtx.fillRect(0,0,trailCanvas.width,trailCanvas.height);trailCtx.globalCompositeOperation='source-over';trailDirty=1;}
  if(trailDirty){trailTex.needsUpdate=true;trailDirty=0;}
- stepSim();renderer.render(scene,camera);updateAudio(dt,T);}
+ stepSim();if(!window.__noRender)renderer.render(scene,camera);updateAudio(dt,T);}
 resize();resetLeaves();
 // initial residents
 function seedLife(){const add=(k,n)=>{for(let i=0;i<n;i++){const c=spawn(k);const [x,z]=freeSpot(1.2);c.x=x;c.z=z;if(c.flier){c.y=rnd(1.8,3);}else{c.state='live';c.onLand&&c.onLand();}}};
@@ -849,7 +851,7 @@ function seedLife(){const add=(k,n)=>{for(let i=0;i<n;i++){const c=spawn(k);cons
 makeThumbs();seedLife();
 let last=performance.now();function frame(now){const dt=(now-last)/1000;last=now;step(dt);adapt(dt);requestAnimationFrame(frame);}
 if(!REC)requestAnimationFrame(frame);
-window.step=step;window.FF={spawn,tossFrom,touch,doCtrl,toWorld,creatures,devil,world,get HW(){return HW}};
+window.step=step;window.FF={toScreen:(x,y,z)=>{const v=new THREE.Vector3(x,y,z).project(camera);return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight];},spawn,tossFrom,touch,doCtrl,toWorld,creatures,devil,world,get HW(){return HW}};
 
 }
 requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>{boot();requestAnimationFrame(()=>requestAnimationFrame(()=>{const l=document.getElementById('load');l.classList.add('gone');setTimeout(()=>l.remove(),1000);}));},20)));
